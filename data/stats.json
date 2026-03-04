@@ -1,5 +1,5 @@
 {
-  "totalSearches": 32,
+  "totalSearches": 37,
   "searches": [
     {
       "query": "Kirayə, <500 AZN",
@@ -288,20 +288,63 @@
       "responseTimeMs": 683,
       "resultCount": 10,
       "timestamp": 1772640991829
+    },
+    {
+      "query": "iPhone 15",
+      "tool": "auto_search",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 1540,
+      "resultCount": 5,
+      "timestamp": 1772641069509
+    },
+    {
+      "query": "iPhone 15",
+      "tool": "smart_tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 815,
+      "resultCount": 10,
+      "timestamp": 1772641130259
+    },
+    {
+      "query": "iPhone 15",
+      "tool": "smart_tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 859,
+      "resultCount": 10,
+      "timestamp": 1772641195073
+    },
+    {
+      "query": "iPhone 15",
+      "tool": "tapaz",
+      "responseTimeMs": 580,
+      "resultCount": 8,
+      "timestamp": 1772641254218
+    },
+    {
+      "query": "sata ssd",
+      "tool": "tapaz",
+      "responseTimeMs": 572,
+      "resultCount": 10,
+      "timestamp": 1772641265353
     }
   ],
   "userStats": {
     "8558408626": {
-      "count": 32,
-      "lastActive": 1772640991829,
+      "count": 35,
+      "lastActive": 1772641195073,
       "username": "Vusalxp"
     }
   },
   "toolStats": {
     "binaaz": 6,
     "turboaz": 3,
-    "tapaz": 22,
-    "web_search": 1
+    "tapaz": 24,
+    "web_search": 1,
+    "auto_search": 1,
+    "smart_tapaz": 2
   },
   "popularQueries": {
     "kirayə, <500 azn": 4,
@@ -314,7 +357,8 @@
     "ssd 512gb": 1,
     "iphone": 4,
     "iphone15": 7,
-    "iphone 15": 9
+    "iphone 15": 13,
+    "sata ssd": 1
   },
   "startedAt": 1772638686478
 }
