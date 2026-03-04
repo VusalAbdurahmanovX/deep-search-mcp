@@ -19,6 +19,13 @@ function escapeMarkdown(text: string): string {
   return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
 }
 
+function normalizeQuery(query: string): string {
+  return query
+    .replace(/([a-zA-Z])(\d)/g, "$1 $2")
+    .replace(/(\d)([a-zA-Z])/g, "$1 $2")
+    .trim();
+}
+
 async function trackAndReply(
   chatId: number,
   userId: string,
@@ -135,26 +142,46 @@ bot.onText(/\/search\s+(.+)/, async (msg, match) => {
 });
 
 // /tapaz <query> [min_price]
+// Price must be >= 50 to be treated as filter (so "iPhone 15" works)
 bot.onText(/\/tapaz\s+(.+)/, async (msg, match) => {
   const parts = (match?.[1] || "").trim().split(/\s+/);
   let minPrice: number | undefined;
 
   const lastPart = parts[parts.length - 1];
-  if (/^\d+$/.test(lastPart) && parts.length > 1) {
+  if (/^\d+$/.test(lastPart) && parts.length > 1 && parseInt(lastPart) >= 50) {
     minPrice = parseInt(lastPart);
     parts.pop();
   }
 
-  const query = parts.join(" ");
+  const query = normalizeQuery(parts.join(" "));
   const userId = String(msg.from?.id || msg.chat.id);
   const username = msg.from?.username;
 
   await trackAndReply(msg.chat.id, userId, username, "tapaz", query, async () => {
-    const listings = await searchTapAz(query, {
-      maxResults: 10,
+    const rawListings = await searchTapAz(query, {
+      maxResults: 30,
       sortByPrice: "asc",
       minPrice,
     });
+
+    const queryWords = query.toLowerCase().split(/\s+/).filter((w) => w.length > 1);
+    const listings = rawListings.filter((l) => {
+      const titleLower = l.title.toLowerCase();
+      return queryWords.every((word) => titleLower.includes(word));
+    }).slice(0, 10);
+
+    if (listings.length === 0 && rawListings.length > 0) {
+      const fallback = rawListings.slice(0, 10);
+      const lines = [`🛒 *tap.az:* "${escapeMarkdown(query)}" (tam uyğun nəticə tapılmadı, oxşar nəticələr)`, ""];
+      for (let i = 0; i < fallback.length; i++) {
+        const l = fallback[i];
+        lines.push(`*${i + 1}.* ${escapeMarkdown(l.title)}`);
+        lines.push(`   💰 *${l.price} AZN* | 📍 ${l.region}`);
+        lines.push(`   ${l.url}`);
+        lines.push("");
+      }
+      return { text: lines.join("\n"), count: fallback.length };
+    }
 
     if (listings.length === 0) {
       return { text: `tap.az-da "${query}" tapılmadı`, count: 0 };
@@ -353,34 +380,141 @@ bot.onText(/\/stats/, async (msg) => {
   await bot.sendMessage(msg.chat.id, statsMsg, { parse_mode: "Markdown" });
 });
 
-// plain text: auto-search
+// Smart search patterns for auto-detection
+const CAR_KEYWORDS = ["maşın", "avtomobil", "car", "mercedes", "bmw", "toyota", "hyundai", "kia", "ford", "chevrolet", "lexus", "audi", "volkswagen", "nissan", "honda", "mazda", "opel", "peugeot", "renault", "vaz", "lada"];
+const PROPERTY_KEYWORDS = ["mənzil", "ev", "villa", "torpaq", "ofis", "kirayə", "rent", "apartment", "house", "kiraye", "menzil"];
+const PRODUCT_KEYWORDS = ["iphone", "samsung", "xiaomi", "laptop", "komputer", "telefon", "ssd", "notebook", "macbook", "airpods", "playstation", "ps5", "monitor", "printer", "televizor", "saat", "watch"];
+
+function detectSearchType(query: string): "car" | "property" | "product" | "web" {
+  const lower = query.toLowerCase();
+  const words = lower.split(/\s+/);
+
+  if (CAR_KEYWORDS.some((k) => words.includes(k) || lower.includes(k))) return "car";
+  if (PROPERTY_KEYWORDS.some((k) => words.includes(k) || lower.includes(k))) return "property";
+  if (PRODUCT_KEYWORDS.some((k) => words.includes(k) || lower.includes(k))) return "product";
+  return "web";
+}
+
+// plain text: smart global search
 bot.on("message", async (msg) => {
   if (msg.text?.startsWith("/") || !msg.text) return;
 
-  const query = msg.text.trim();
-  if (query.length < 2) return;
+  const rawQuery = msg.text.trim();
+  if (rawQuery.length < 2) return;
 
+  const query = normalizeQuery(rawQuery);
   const userId = String(msg.from?.id || msg.chat.id);
   const username = msg.from?.username;
 
-  await trackAndReply(msg.chat.id, userId, username, "auto_search", query, async () => {
-    const results = await searchDuckDuckGo(query, 5);
+  const searchType = detectSearchType(query);
 
-    if (results.length === 0) {
-      return { text: `"${query}" üçün nəticə tapılmadı`, count: 0 };
-    }
+  if (searchType === "product") {
+    await trackAndReply(msg.chat.id, userId, username, "smart_tapaz", query, async () => {
+      const rawListings = await searchTapAz(query, {
+        maxResults: 30,
+        sortByPrice: "asc",
+        minPrice: 50,
+      });
 
-    const lines = [`🔍 *"${escapeMarkdown(query)}"*`, ""];
-    for (let i = 0; i < results.length; i++) {
-      const r = results[i];
-      lines.push(`*${i + 1}.* ${escapeMarkdown(r.title)}`);
-      lines.push(`${r.url}`);
-      if (r.snippet) lines.push(`_${escapeMarkdown(r.snippet.substring(0, 100))}_`);
-      lines.push("");
-    }
+      const queryWords = query.toLowerCase().split(/\s+/).filter((w) => w.length > 1);
+      const listings = rawListings.filter((l) => {
+        const t = l.title.toLowerCase();
+        return queryWords.every((w) => t.includes(w));
+      }).slice(0, 10);
 
-    return { text: lines.join("\n"), count: results.length };
-  });
+      const results = listings.length > 0 ? listings : rawListings.slice(0, 10);
+      const label = listings.length > 0 ? "" : " (oxşar nəticələr)";
+
+      if (results.length === 0) {
+        return { text: `"${query}" üçün tap.az-da nəticə tapılmadı`, count: 0 };
+      }
+
+      const lines = [`🛒 *tap.az:* "${escapeMarkdown(query)}"${label}`, ""];
+      for (let i = 0; i < results.length; i++) {
+        const l = results[i];
+        lines.push(`*${i + 1}.* ${escapeMarkdown(l.title)}`);
+        lines.push(`   💰 *${l.price} AZN* | 📍 ${l.region}`);
+        lines.push(`   ${l.url}`);
+        lines.push("");
+      }
+      return { text: lines.join("\n"), count: results.length };
+    });
+  } else if (searchType === "car") {
+    await trackAndReply(msg.chat.id, userId, username, "smart_turboaz", query, async () => {
+      const words = query.toLowerCase().split(/\s+/);
+      let make: string | undefined;
+      let maxPrice: number | undefined;
+
+      for (const w of words) {
+        if (CAR_KEYWORDS.includes(w) && !["maşın", "avtomobil", "car"].includes(w)) {
+          make = w;
+        } else if (/^\d+$/.test(w) && parseInt(w) >= 100) {
+          maxPrice = parseInt(w);
+        }
+      }
+
+      const result = await searchTurboAz({ make, maxPrice, currency: "AZN", sort: "price_asc" });
+
+      if (result.cars.length === 0) {
+        return { text: `turbo.az-da heç bir avtomobil tapılmadı`, count: 0 };
+      }
+
+      const lines = [`🚗 *turbo.az:* "${escapeMarkdown(query)}"`, `_${result.totalCount} ümumi elan_`, ""];
+      for (let i = 0; i < Math.min(result.cars.length, 10); i++) {
+        const c = result.cars[i];
+        lines.push(`*${i + 1}.* ${escapeMarkdown(c.name)} (${c.year})`);
+        lines.push(`   💰 *${c.price.toLocaleString()} ${c.currency}* | 📍 ${c.region}`);
+        lines.push(`   ${c.url}`);
+        lines.push("");
+      }
+      return { text: lines.join("\n"), count: result.cars.length };
+    });
+  } else if (searchType === "property") {
+    await trackAndReply(msg.chat.id, userId, username, "smart_binaaz", query, async () => {
+      const lower = query.toLowerCase();
+      const isRent = lower.includes("kirayə") || lower.includes("kiraye") || lower.includes("rent");
+
+      const properties = await searchBinaAz({
+        leased: isRent,
+        minPrice: isRent ? 300 : undefined,
+        sort: "PRICE_ASC",
+        limit: 10,
+      });
+
+      if (properties.length === 0) {
+        return { text: `bina.az-da heç bir əmlak tapılmadı`, count: 0 };
+      }
+
+      const typeLabel = isRent ? "Kirayə" : "Satılır";
+      const lines = [`🏠 *bina.az:* ${typeLabel}`, ""];
+      for (let i = 0; i < properties.length; i++) {
+        const p = properties[i];
+        lines.push(`*${i + 1}.* ${escapeMarkdown(p.location || "?")}${p.city ? `, ${p.city}` : ""}`);
+        lines.push(`   💰 *${p.price.toLocaleString()} ${p.currency}* | 🏠 ${p.rooms ?? "-"} otaq | 📐 ${p.area}m²`);
+        lines.push(`   ${p.hasRepair ? "✅ Təmirli" : "❌ Təmirsiz"} | ${p.url}`);
+        lines.push("");
+      }
+      return { text: lines.join("\n"), count: properties.length };
+    });
+  } else {
+    await trackAndReply(msg.chat.id, userId, username, "smart_web", query, async () => {
+      const results = await searchDuckDuckGo(query, 5);
+
+      if (results.length === 0) {
+        return { text: `"${query}" üçün nəticə tapılmadı`, count: 0 };
+      }
+
+      const lines = [`🔍 *"${escapeMarkdown(query)}"*`, ""];
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i];
+        lines.push(`*${i + 1}.* ${escapeMarkdown(r.title)}`);
+        lines.push(`${r.url}`);
+        if (r.snippet) lines.push(`_${escapeMarkdown(r.snippet.substring(0, 100))}_`);
+        lines.push("");
+      }
+      return { text: lines.join("\n"), count: results.length };
+    });
+  }
 });
 
 console.log("🤖 Deep Search Telegram Bot is running...");

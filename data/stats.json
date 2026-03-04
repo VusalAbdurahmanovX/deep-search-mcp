@@ -1,5 +1,5 @@
 {
-  "totalSearches": 12,
+  "totalSearches": 27,
   "searches": [
     {
       "query": "Kirayə, <500 AZN",
@@ -108,19 +108,154 @@
       "responseTimeMs": 525,
       "resultCount": 10,
       "timestamp": 1772639032025
+    },
+    {
+      "query": "iphone",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 946,
+      "resultCount": 10,
+      "timestamp": 1772640440843
+    },
+    {
+      "query": "iphone",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 1141,
+      "resultCount": 10,
+      "timestamp": 1772640440903
+    },
+    {
+      "query": "iphone15",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 657,
+      "resultCount": 10,
+      "timestamp": 1772640450749
+    },
+    {
+      "query": "iphone15",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 594,
+      "resultCount": 10,
+      "timestamp": 1772640490585
+    },
+    {
+      "query": "iPhone 15",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 876,
+      "resultCount": 10,
+      "timestamp": 1772640503810
+    },
+    {
+      "query": "iPhone 15",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 734,
+      "resultCount": 10,
+      "timestamp": 1772640504094
+    },
+    {
+      "query": "iPhone 15",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 792,
+      "resultCount": 10,
+      "timestamp": 1772640504152
+    },
+    {
+      "query": "iPhone 15",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 787,
+      "resultCount": 10,
+      "timestamp": 1772640578391
+    },
+    {
+      "query": "iPhone 15",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 706,
+      "resultCount": 10,
+      "timestamp": 1772640578525
+    },
+    {
+      "query": "iphone15",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 904,
+      "resultCount": 10,
+      "timestamp": 1772640768685
+    },
+    {
+      "query": "iphone15",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 675,
+      "resultCount": 10,
+      "timestamp": 1772640919820
+    },
+    {
+      "query": "iphone15",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 746,
+      "resultCount": 10,
+      "timestamp": 1772640919853
+    },
+    {
+      "query": "iphone15",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 560,
+      "resultCount": 10,
+      "timestamp": 1772640919887
+    },
+    {
+      "query": "iphone15",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 547,
+      "resultCount": 10,
+      "timestamp": 1772640919975
+    },
+    {
+      "query": "iphone 15",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 611,
+      "resultCount": 10,
+      "timestamp": 1772640955307
     }
   ],
   "userStats": {
     "8558408626": {
-      "count": 12,
-      "lastActive": 1772639032025,
+      "count": 27,
+      "lastActive": 1772640955307,
       "username": "Vusalxp"
     }
   },
   "toolStats": {
     "binaaz": 6,
     "turboaz": 3,
-    "tapaz": 2,
+    "tapaz": 17,
     "web_search": 1
   },
   "popularQueries": {
@@ -131,7 +266,10 @@
     "laptop": 1,
     "iphone 15 qiymət": 1,
     "kirayə, 100-500 azn": 2,
-    "ssd 512gb": 1
+    "ssd 512gb": 1,
+    "iphone": 2,
+    "iphone15": 7,
+    "iphone 15": 6
   },
   "startedAt": 1772638686478
 }
