@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.deep-search-cache/
+.env
+*.log

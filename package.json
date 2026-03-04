@@ -1,0 +1,24 @@
+{
+  "name": "deep-search-mcp",
+  "version": "1.0.0",
+  "description": "Self-hosted MCP deep search server - free, no paid APIs",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "deep-search-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "cheerio": "^1.0.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}
