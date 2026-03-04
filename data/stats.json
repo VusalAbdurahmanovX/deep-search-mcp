@@ -1,5 +1,5 @@
 {
-  "totalSearches": 27,
+  "totalSearches": 32,
   "searches": [
     {
       "query": "Kirayə, <500 AZN",
@@ -243,19 +243,64 @@
       "responseTimeMs": 611,
       "resultCount": 10,
       "timestamp": 1772640955307
+    },
+    {
+      "query": "iphone 15",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 625,
+      "resultCount": 10,
+      "timestamp": 1772640991428
+    },
+    {
+      "query": "iphone 15",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 733,
+      "resultCount": 10,
+      "timestamp": 1772640991454
+    },
+    {
+      "query": "iphone",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 625,
+      "resultCount": 10,
+      "timestamp": 1772640991567
+    },
+    {
+      "query": "iphone 15",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 660,
+      "resultCount": 10,
+      "timestamp": 1772640991814
+    },
+    {
+      "query": "iphone",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 683,
+      "resultCount": 10,
+      "timestamp": 1772640991829
     }
   ],
   "userStats": {
     "8558408626": {
-      "count": 27,
-      "lastActive": 1772640955307,
+      "count": 32,
+      "lastActive": 1772640991829,
       "username": "Vusalxp"
     }
   },
   "toolStats": {
     "binaaz": 6,
     "turboaz": 3,
-    "tapaz": 17,
+    "tapaz": 22,
     "web_search": 1
   },
   "popularQueries": {
@@ -267,9 +312,9 @@
     "iphone 15 qiymət": 1,
     "kirayə, 100-500 azn": 2,
     "ssd 512gb": 1,
-    "iphone": 2,
+    "iphone": 4,
     "iphone15": 7,
-    "iphone 15": 6
+    "iphone 15": 9
   },
   "startedAt": 1772638686478
 }
