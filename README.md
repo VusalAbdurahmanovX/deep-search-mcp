@@ -27,6 +27,47 @@ Self-hosted MCP (Model Context Protocol) server for deep web search with built-i
 | `check_engines` | Check status of all search engines and marketplaces |
 | `manage_cache` | Cache management (stats, clear, prune expired) |
 
+## Telegram Bot
+
+The project includes a Telegram bot that provides search functionality through Telegram.
+
+### Bot Commands
+
+| Command | Description |
+|---------|-------------|
+| `/search <query>` | Web search via DuckDuckGo |
+| `/tapaz <query> [min_price]` | Search tap.az marketplace |
+| `/turbo [make] [max_price] [min_year]` | Search turbo.az cars |
+| `/bina [rent] [max_price] [min_area]` | Search bina.az real estate |
+| `/extract <url>` | Extract content from a URL |
+| `/stats` | View usage statistics |
+| Plain text | Auto-search the web |
+
+### Setup Telegram Bot
+
+1. Message [@BotFather](https://t.me/BotFather) on Telegram
+2. Send `/newbot` and follow the prompts
+3. Copy the bot token
+4. Set the token:
+   ```bash
+   export TELEGRAM_BOT_TOKEN=your_token_here
+   ```
+5. Start the bot:
+   ```bash
+   npm run bot
+   ```
+
+### Usage Statistics
+
+The bot automatically tracks:
+- Total search count
+- Unique users
+- Most popular queries
+- Tool usage breakdown
+- Per-user statistics
+
+View stats with `/stats` command or check `data/stats.json`.
+
 ## Quick Start
 
 ### Prerequisites

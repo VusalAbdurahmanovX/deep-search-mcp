@@ -1,7 +1,7 @@
 {
   "name": "deep-search-mcp",
-  "version": "1.0.0",
-  "description": "Self-hosted MCP deep search server - free, no paid APIs",
+  "version": "3.0.0",
+  "description": "Self-hosted MCP deep search server with Telegram bot and Azerbaijani marketplace integrations",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -10,15 +10,18 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
+    "bot": "node dist/telegram-bot.js",
     "dev": "tsc --watch"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "cheerio": "^1.0.0",
+    "node-telegram-bot-api": "^0.66.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/node-telegram-bot-api": "^0.64.0",
     "typescript": "^5.7.0"
   }
 }
