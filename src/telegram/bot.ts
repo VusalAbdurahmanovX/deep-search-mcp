@@ -223,36 +223,78 @@ bot.onText(/\/turbo(?:\s+(.*))?/, async (msg, match) => {
   });
 });
 
-// /bina [rent] [max_price] [min_area]
+// /bina [rent] [min_price] [max_price] [min_area]
+// /bina rent 200 500 — rent between 200-500 AZN
+// /bina rent 300 — rent, min 300 AZN (filters daily rentals)
+// /bina 50000 100000 80 — sale 50k-100k, min 80m²
 bot.onText(/\/bina(?:\s+(.*))?/, async (msg, match) => {
   const args = (match?.[1] || "").trim().split(/\s+/).filter(Boolean);
   const userId = String(msg.from?.id || msg.chat.id);
   const username = msg.from?.username;
 
   let isRent = false;
+  const numbers: number[] = [];
+
+  for (const arg of args) {
+    if (arg.toLowerCase() === "rent" || arg.toLowerCase() === "kirayə" || arg.toLowerCase() === "kiraye") {
+      isRent = true;
+    } else if (/^\d+$/.test(arg)) {
+      numbers.push(parseInt(arg));
+    }
+  }
+
+  let minPrice: number | undefined;
   let maxPrice: number | undefined;
   let minArea: number | undefined;
 
-  for (const arg of args) {
-    if (arg.toLowerCase() === "rent" || arg.toLowerCase() === "kirayə") {
-      isRent = true;
-    } else if (/^\d+$/.test(arg)) {
-      if (!maxPrice) {
-        maxPrice = parseInt(arg);
-      } else {
-        minArea = parseInt(arg);
-      }
+  if (isRent) {
+    // /bina rent — all monthly rentals (min 100 AZN)
+    // /bina rent 500 — max 500 AZN, min 100 AZN
+    // /bina rent 200 500 — 200-500 AZN
+    // /bina rent 200 500 40 — 200-500 AZN, min 40m²
+    minPrice = 300; // filter daily rentals (usually 50-200 AZN/day)
+    if (numbers.length === 1) {
+      maxPrice = numbers[0];
+    } else if (numbers.length === 2) {
+      minPrice = numbers[0];
+      maxPrice = numbers[1];
+    } else if (numbers.length >= 3) {
+      minPrice = numbers[0];
+      maxPrice = numbers[1];
+      minArea = numbers[2];
+    }
+  } else {
+    // /bina 100000 — max price
+    // /bina 50000 100000 — min-max price
+    // /bina 50000 100000 80 — price range + min area
+    if (numbers.length === 1) {
+      maxPrice = numbers[0];
+    } else if (numbers.length === 2) {
+      minPrice = numbers[0];
+      maxPrice = numbers[1];
+    } else if (numbers.length >= 3) {
+      minPrice = numbers[0];
+      maxPrice = numbers[1];
+      minArea = numbers[2];
     }
   }
 
   const typeLabel = isRent ? "Kirayə" : "Satılır";
-  const queryDesc = [typeLabel, maxPrice ? `<${maxPrice} AZN` : null, minArea ? `>${minArea}m²` : null]
+  const priceDesc = minPrice && maxPrice
+    ? `${minPrice}-${maxPrice} AZN`
+    : maxPrice
+      ? `<${maxPrice} AZN`
+      : minPrice
+        ? `>${minPrice} AZN`
+        : null;
+  const queryDesc = [typeLabel, priceDesc, minArea ? `>${minArea}m²` : null]
     .filter(Boolean)
     .join(", ");
 
   await trackAndReply(msg.chat.id, userId, username, "binaaz", queryDesc, async () => {
     const properties = await searchBinaAz({
       leased: isRent,
+      minPrice,
       maxPrice,
       minArea,
       sort: "PRICE_ASC",

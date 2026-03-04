@@ -1,0 +1,137 @@
+{
+  "totalSearches": 12,
+  "searches": [
+    {
+      "query": "Kirayə, <500 AZN",
+      "tool": "binaaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 830,
+      "resultCount": 10,
+      "timestamp": 1772638686478
+    },
+    {
+      "query": "gle",
+      "tool": "turboaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 760,
+      "resultCount": 0,
+      "timestamp": 1772638723541
+    },
+    {
+      "query": "mercedes",
+      "tool": "turboaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 695,
+      "resultCount": 0,
+      "timestamp": 1772638730194
+    },
+    {
+      "query": "mercedes, <10000 AZN",
+      "tool": "turboaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 775,
+      "resultCount": 0,
+      "timestamp": 1772638736046
+    },
+    {
+      "query": "laptop",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 715,
+      "resultCount": 10,
+      "timestamp": 1772638747158
+    },
+    {
+      "query": "Kirayə, <500 AZN",
+      "tool": "binaaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 817,
+      "resultCount": 10,
+      "timestamp": 1772638761565
+    },
+    {
+      "query": "Kirayə, <500 AZN",
+      "tool": "binaaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 662,
+      "resultCount": 10,
+      "timestamp": 1772638809762
+    },
+    {
+      "query": "Kirayə, <500 AZN",
+      "tool": "binaaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 714,
+      "resultCount": 10,
+      "timestamp": 1772638822318
+    },
+    {
+      "query": "iPhone 15 qiymət",
+      "tool": "web_search",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 1383,
+      "resultCount": 5,
+      "timestamp": 1772638844935
+    },
+    {
+      "query": "Kirayə, 100-500 AZN",
+      "tool": "binaaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 697,
+      "resultCount": 10,
+      "timestamp": 1772638944771
+    },
+    {
+      "query": "SSD 512GB",
+      "tool": "tapaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 809,
+      "resultCount": 10,
+      "timestamp": 1772638982440
+    },
+    {
+      "query": "Kirayə, 100-500 AZN",
+      "tool": "binaaz",
+      "userId": "8558408626",
+      "username": "Vusalxp",
+      "responseTimeMs": 525,
+      "resultCount": 10,
+      "timestamp": 1772639032025
+    }
+  ],
+  "userStats": {
+    "8558408626": {
+      "count": 12,
+      "lastActive": 1772639032025,
+      "username": "Vusalxp"
+    }
+  },
+  "toolStats": {
+    "binaaz": 6,
+    "turboaz": 3,
+    "tapaz": 2,
+    "web_search": 1
+  },
+  "popularQueries": {
+    "kirayə, <500 azn": 4,
+    "gle": 1,
+    "mercedes": 1,
+    "mercedes, <10000 azn": 1,
+    "laptop": 1,
+    "iphone 15 qiymət": 1,
+    "kirayə, 100-500 azn": 2,
+    "ssd 512gb": 1
+  },
+  "startedAt": 1772638686478
+}
