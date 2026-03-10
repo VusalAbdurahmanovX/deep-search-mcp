@@ -9,10 +9,12 @@ import { extractContent, extractMultiple } from "./scraper/extractor.js";
 import { deduplicateByUrl, buildResultSummary, formatTimestamp } from "./utils/helpers.js";
 import { getCached, setCache, clearCache, getCacheStats, pruneCache } from "./cache/cache.js";
 import { detectAzerbaijani, enhanceQueryForAz, prioritizeAzResults } from "./lang/azerbaijani.js";
-import { SearchResult, ExtractedContent } from "./search/types.js";
+import { SearchResult, ExtractedContent, TotalSearchSection } from "./search/types.js";
 import { searchTapAz, checkTapAzAvailable } from "./search/tapaz.js";
 import { searchTurboAz, checkTurboAzAvailable } from "./search/turboaz.js";
 import { searchBinaAz, checkBinaAzAvailable } from "./search/binaaz.js";
+import { browserSearch, checkBrowserAvailable, closeBrowser } from "./search/browser.js";
+import { browserExtractContent, browserExtractMultiple } from "./scraper/browser-extractor.js";
 
 const server = new McpServer({
   name: "deep-search",
@@ -738,15 +740,507 @@ server.tool(
   }
 );
 
+// ── browser_search: Chromium-based search (Google + Bing) ───────────
+server.tool(
+  "browser_search",
+  "Search using a real Chromium browser - directly scrapes Google and Bing search results. More reliable for complex queries, bypasses API limitations. Can also scrape full page content from results using the browser.",
+  {
+    query: z.string().describe("Search query"),
+    max_results: z
+      .number()
+      .min(1)
+      .max(20)
+      .default(10)
+      .describe("Maximum results (1-20)"),
+    engines: z
+      .array(z.enum(["google", "bing"]))
+      .default(["google", "bing"])
+      .describe("Browser search engines to use"),
+    scrape_content: z
+      .boolean()
+      .default(false)
+      .describe("Scrape full page content from result URLs using the browser (slower, handles JS-rendered pages)"),
+    scrape_limit: z
+      .number()
+      .min(1)
+      .max(10)
+      .default(5)
+      .describe("Max pages to scrape when scrape_content is true"),
+  },
+  async ({ query, max_results, engines, scrape_content, scrape_limit }) => {
+    try {
+      console.error(`[browser_search] Query: "${query}" | Engines: ${engines.join(",")} | Scrape: ${scrape_content}`);
+
+      const cacheKey = `browser|${query}|${engines.join(",")}|${max_results}`;
+      const cached = getCached<SearchResult[]>("browser_search", cacheKey);
+
+      let results: SearchResult[];
+      if (cached) {
+        results = cached;
+        console.error(`[browser_search] Cache hit`);
+      } else {
+        results = await browserSearch(query, max_results, engines);
+        setCache("browser_search", cacheKey, results);
+      }
+
+      if (results.length === 0) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: `No browser search results found for: "${query}"`,
+          }],
+        };
+      }
+
+      const lines = [
+        `# Browser Search: "${query}"`,
+        `**${results.length} result(s)** | Engines: ${engines.join(", ")} | ${formatTimestamp()}`,
+        "",
+        "---",
+        "",
+      ];
+
+      if (scrape_content) {
+        const urlsToScrape = results.slice(0, scrape_limit).map((r) => r.url);
+        console.error(`[browser_search] Scraping ${urlsToScrape.length} pages with browser...`);
+        const extracted = await browserExtractMultiple(urlsToScrape, 2);
+
+        for (let i = 0; i < results.length; i++) {
+          const r = results[i];
+          const ext = i < extracted.length ? extracted[i] : null;
+          lines.push(`## ${i + 1}. ${ext?.title || r.title}`);
+          lines.push(`**URL:** ${r.url}`);
+          lines.push(`**Engine:** ${r.engine}`);
+          lines.push("");
+          if (ext?.success && ext.content) {
+            lines.push(ext.content.slice(0, 2000));
+          } else {
+            lines.push(r.snippet || "*No content available*");
+          }
+          lines.push("");
+          lines.push("---");
+          lines.push("");
+        }
+      } else {
+        for (let i = 0; i < results.length; i++) {
+          const r = results[i];
+          lines.push(`### ${i + 1}. ${r.title}`);
+          lines.push(`**URL:** ${r.url}`);
+          lines.push(`**Engine:** ${r.engine}`);
+          lines.push("");
+          lines.push(r.snippet || "*No snippet*");
+          lines.push("");
+          lines.push("---");
+          lines.push("");
+        }
+      }
+
+      return {
+        content: [{ type: "text" as const, text: lines.join("\n") }],
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      return {
+        content: [{
+          type: "text" as const,
+          text: `Browser search failed: ${message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ── browser_extract: scrape a page using Chromium ───────────────────
+server.tool(
+  "browser_extract",
+  "Extract content from a web page using a real Chromium browser. Handles JavaScript-rendered pages (SPAs, React, Angular, etc.) that regular HTTP scraping cannot. Use this for pages that return empty or incomplete content with extract_page.",
+  {
+    url: z.string().url().describe("URL to extract content from"),
+  },
+  async ({ url }) => {
+    try {
+      console.error(`[browser_extract] Extracting: ${url}`);
+
+      const cacheKey = `browser_page|${url}`;
+      const cached = getCached<ExtractedContent>("browser_pages", cacheKey);
+
+      let result: ExtractedContent;
+      if (cached) {
+        result = cached;
+      } else {
+        result = await browserExtractContent(url);
+        if (result.success) {
+          setCache("browser_pages", cacheKey, result, 7200000);
+        }
+      }
+
+      if (!result.success) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: `Failed to extract with browser: ${result.error}`,
+          }],
+          isError: true,
+        };
+      }
+
+      const output = [
+        `# ${result.title || "Untitled Page"}`,
+        `**URL:** ${result.url}`,
+        `**Links found:** ${result.links.length}`,
+        `**Method:** Chromium browser`,
+        "",
+        "---",
+        "",
+        result.content,
+      ];
+
+      if (result.links.length > 0) {
+        output.push("", "---", "", "## Links", "");
+        for (const link of result.links.slice(0, 20)) {
+          output.push(`- ${link}`);
+        }
+      }
+
+      return {
+        content: [{ type: "text" as const, text: output.join("\n") }],
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      return {
+        content: [{
+          type: "text" as const,
+          text: `Browser extraction failed: ${message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ── total_search: unified search across ALL sources with summary ────
+server.tool(
+  "total_search",
+  "Total unified search - searches web engines AND all Azerbaijani marketplaces (tap.az, turbo.az, bina.az) in parallel, then combines and summarizes all results. Use this when you want comprehensive results from every available source at once.",
+  {
+    query: z.string().describe("Search query - used for web search and tap.az keyword search"),
+    max_results: z
+      .number()
+      .min(1)
+      .max(20)
+      .default(5)
+      .describe("Max results per source (1-20)"),
+    scrape_web: z
+      .boolean()
+      .default(true)
+      .describe("Scrape full page content from web results (slower but more detailed)"),
+    include_tapaz: z
+      .boolean()
+      .default(true)
+      .describe("Include tap.az marketplace results"),
+    tapaz_min_price: z.number().optional().describe("tap.az minimum price (AZN)"),
+    tapaz_max_price: z.number().optional().describe("tap.az maximum price (AZN)"),
+    include_turboaz: z
+      .boolean()
+      .default(false)
+      .describe("Include turbo.az car results"),
+    turbo_make: z.string().optional().describe("turbo.az car make (e.g. 'BMW')"),
+    turbo_model: z.string().optional().describe("turbo.az car model (e.g. 'X5')"),
+    turbo_max_price: z.number().optional().describe("turbo.az max price"),
+    include_browser: z
+      .boolean()
+      .default(true)
+      .describe("Include Chromium browser search (Google + Bing)"),
+    include_binaaz: z
+      .boolean()
+      .default(false)
+      .describe("Include bina.az real estate results"),
+    bina_type: z.enum(["sale", "rent"]).default("sale").describe("bina.az: sale or rent"),
+    bina_max_price: z.number().optional().describe("bina.az max price (AZN)"),
+    bina_rooms: z.number().optional().describe("bina.az number of rooms"),
+  },
+  async ({
+    query, max_results, scrape_web,
+    include_tapaz, tapaz_min_price, tapaz_max_price,
+    include_turboaz, turbo_make, turbo_model, turbo_max_price,
+    include_browser,
+    include_binaaz, bina_type, bina_max_price, bina_rooms,
+  }) => {
+    try {
+      const azDetection = detectAzerbaijani(query);
+      const azMode = azDetection.isAzerbaijani;
+      const startTime = Date.now();
+
+      console.error(
+        `[total_search] Query: "${query}" | Sources: web${include_browser ? "+browser" : ""}${include_tapaz ? "+tapaz" : ""}${include_turboaz ? "+turboaz" : ""}${include_binaaz ? "+binaaz" : ""} | AZ: ${azMode}`
+      );
+
+      const sections: TotalSearchSection[] = [];
+      const promises: Promise<void>[] = [];
+
+      // Web search
+      promises.push(
+        (async () => {
+          try {
+            const searchResults = await performSearch(query, max_results, ["searxng", "duckduckgo"], azMode);
+            const items: TotalSearchSection["items"] = [];
+
+            if (scrape_web && searchResults.length > 0) {
+              const urls = searchResults.map((r) => r.url);
+              const extracted = await fetchMultipleCached(urls, 3);
+              for (let i = 0; i < searchResults.length; i++) {
+                const sr = searchResults[i];
+                const ext = extracted[i];
+                const content = ext?.success
+                  ? ext.content.slice(0, 1500)
+                  : sr.snippet;
+                items.push({ title: ext?.title || sr.title, url: sr.url, detail: content });
+              }
+            } else {
+              for (const sr of searchResults) {
+                items.push({ title: sr.title, url: sr.url, detail: sr.snippet });
+              }
+            }
+
+            sections.push({ source: "web", label: "Web Search (SearXNG + DuckDuckGo)", items });
+          } catch (err) {
+            sections.push({
+              source: "web",
+              label: "Web Search",
+              items: [],
+              error: err instanceof Error ? err.message : "Web search failed",
+            });
+          }
+        })()
+      );
+
+      // Browser search (Chromium: Google + Bing)
+      if (include_browser) {
+        promises.push(
+          (async () => {
+            try {
+              const browserResults = await browserSearch(query, max_results, ["google", "bing"]);
+              const items: TotalSearchSection["items"] = [];
+
+              if (scrape_web && browserResults.length > 0) {
+                const urls = browserResults.slice(0, Math.min(max_results, 5)).map((r) => r.url);
+                const extracted = await browserExtractMultiple(urls, 2);
+                for (let i = 0; i < browserResults.length; i++) {
+                  const sr = browserResults[i];
+                  const ext = i < extracted.length ? extracted[i] : null;
+                  const content = ext?.success
+                    ? ext.content.slice(0, 1500)
+                    : sr.snippet;
+                  items.push({ title: ext?.title || sr.title, url: sr.url, detail: content });
+                }
+              } else {
+                for (const sr of browserResults) {
+                  items.push({ title: sr.title, url: sr.url, detail: sr.snippet });
+                }
+              }
+
+              sections.push({ source: "browser", label: "Browser Search (Google + Bing via Chromium)", items });
+            } catch (err) {
+              sections.push({
+                source: "browser",
+                label: "Browser Search",
+                items: [],
+                error: err instanceof Error ? err.message : "Browser search failed",
+              });
+            }
+          })()
+        );
+      }
+
+      // tap.az
+      if (include_tapaz) {
+        promises.push(
+          (async () => {
+            try {
+              const listings = await searchTapAz(query, {
+                maxResults: max_results,
+                sortByPrice: "asc",
+                minPrice: tapaz_min_price,
+                maxPrice: tapaz_max_price,
+              });
+              const items = listings.map((l) => ({
+                title: l.title,
+                url: l.url,
+                detail: `💰 ${l.price} AZN | 📍 ${l.region} | 📅 ${l.date}`,
+              }));
+              sections.push({ source: "tapaz", label: "tap.az (Marketplace)", items });
+            } catch (err) {
+              sections.push({
+                source: "tapaz",
+                label: "tap.az",
+                items: [],
+                error: err instanceof Error ? err.message : "tap.az search failed",
+              });
+            }
+          })()
+        );
+      }
+
+      // turbo.az
+      if (include_turboaz) {
+        promises.push(
+          (async () => {
+            try {
+              const result = await searchTurboAz({
+                make: turbo_make,
+                model: turbo_model,
+                maxPrice: turbo_max_price,
+                sort: "price_asc",
+              });
+              const items = result.cars.slice(0, max_results).map((c) => ({
+                title: c.name,
+                url: c.url,
+                detail: `💰 ${c.price.toLocaleString()} ${c.currency} | 📅 ${c.year} | 🛣️ ${c.mileage} | ⛽ ${c.fuelType} | 📍 ${c.region}`,
+              }));
+              sections.push({
+                source: "turboaz",
+                label: `turbo.az (Cars${result.totalCount ? ` - ${result.totalCount} total` : ""})`,
+                items,
+              });
+            } catch (err) {
+              sections.push({
+                source: "turboaz",
+                label: "turbo.az",
+                items: [],
+                error: err instanceof Error ? err.message : "turbo.az search failed",
+              });
+            }
+          })()
+        );
+      }
+
+      // bina.az
+      if (include_binaaz) {
+        promises.push(
+          (async () => {
+            try {
+              const properties = await searchBinaAz({
+                leased: bina_type === "rent",
+                maxPrice: bina_max_price,
+                rooms: bina_rooms,
+                sort: "PRICE_ASC",
+                limit: max_results,
+              });
+              const typeLabel = bina_type === "sale" ? "Satılık" : "Kiralık";
+              const items = properties.map((p) => ({
+                title: `${p.rooms ?? "?"} otaq, ${p.area} m² - ${p.location}`,
+                url: p.url,
+                detail: `💰 ${p.price.toLocaleString()} ${p.currency} | 🏠 ${p.rooms ?? "-"} otaq | 📐 ${p.area} m² | 🔧 Təmir: ${p.hasRepair ? "Bəli" : "Xeyr"} | 📍 ${p.location}, ${p.city}`,
+              }));
+              sections.push({ source: "binaaz", label: `bina.az (${typeLabel})`, items });
+            } catch (err) {
+              sections.push({
+                source: "binaaz",
+                label: "bina.az",
+                items: [],
+                error: err instanceof Error ? err.message : "bina.az search failed",
+              });
+            }
+          })()
+        );
+      }
+
+      await Promise.allSettled(promises);
+
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
+      const activeSources = sections.filter((s) => s.items.length > 0).length;
+      const failedSources = sections.filter((s) => s.error).length;
+
+      const lines: string[] = [
+        `# Total Search: "${query}"`,
+        `**${totalItems} result(s)** from **${activeSources} source(s)** | ⏱️ ${elapsed}s | ${formatTimestamp()}`,
+      ];
+
+      if (azMode) {
+        lines.push(`**Dil:** Azərbaycan (${Math.round(azDetection.confidence * 100)}% confidence)`);
+      }
+
+      if (failedSources > 0) {
+        const failed = sections.filter((s) => s.error);
+        lines.push(`\n⚠️ **${failedSources} source(s) failed:** ${failed.map((s) => `${s.label} (${s.error})`).join(", ")}`);
+      }
+
+      lines.push("", "---");
+
+      for (const section of sections) {
+        lines.push("");
+        lines.push(`## ${section.label}`);
+
+        if (section.error && section.items.length === 0) {
+          lines.push(`> ❌ Error: ${section.error}`);
+          lines.push("");
+          continue;
+        }
+
+        if (section.items.length === 0) {
+          lines.push("> No results found");
+          lines.push("");
+          continue;
+        }
+
+        lines.push(`**${section.items.length} result(s)**`);
+        lines.push("");
+
+        for (let i = 0; i < section.items.length; i++) {
+          const item = section.items[i];
+          lines.push(`### ${i + 1}. ${item.title}`);
+          lines.push(`**URL:** ${item.url}`);
+          lines.push("");
+          lines.push(item.detail || "*No details available*");
+          lines.push("");
+        }
+
+        lines.push("---");
+      }
+
+      lines.push("");
+      lines.push("## Summary");
+      lines.push("");
+      lines.push(`Searched **${sections.length} source(s)** for "${query}".`);
+      for (const section of sections) {
+        if (section.items.length > 0) {
+          lines.push(`- **${section.label}:** ${section.items.length} result(s)`);
+        }
+      }
+      if (totalItems === 0) {
+        lines.push("\nNo results found across any source. Try broader search terms.");
+      }
+
+      return {
+        content: [{ type: "text" as const, text: lines.join("\n") }],
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Total search failed: ${message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
 // ── check_engines: check which search engines are available ─────────
 server.tool(
   "check_engines",
-  "Check which search engines (SearXNG, DuckDuckGo) are currently available and reachable. Also shows cache statistics.",
+  "Check which search engines (SearXNG, DuckDuckGo, Browser/Chromium) are currently available and reachable. Also shows cache statistics.",
   {},
   async () => {
-    const [searxng, duckduckgo, tapaz, turboaz, binaaz] = await Promise.allSettled([
+    const [searxng, duckduckgo, browserAvail, tapaz, turboaz, binaaz] = await Promise.allSettled([
       checkSearXNGAvailable(),
       checkDuckDuckGoAvailable(),
+      checkBrowserAvailable(),
       checkTapAzAvailable(),
       checkTurboAzAvailable(),
       checkBinaAzAvailable(),
@@ -754,6 +1248,7 @@ server.tool(
 
     const searxngOk = searxng.status === "fulfilled" && searxng.value;
     const ddgOk = duckduckgo.status === "fulfilled" && duckduckgo.value;
+    const browserOk = browserAvail.status === "fulfilled" && browserAvail.value;
     const tapazOk = tapaz.status === "fulfilled" && tapaz.value;
     const turboazOk = turboaz.status === "fulfilled" && turboaz.value;
     const binaazOk = binaaz.status === "fulfilled" && binaaz.value;
@@ -765,6 +1260,7 @@ server.tool(
       "## Search Engines",
       `- **SearXNG:** ${searxngOk ? "Available" : "Unavailable"} (${process.env.SEARXNG_URL || "http://localhost:8080"})`,
       `- **DuckDuckGo:** ${ddgOk ? "Available" : "Unavailable"}`,
+      `- **Chromium Browser:** ${browserOk ? "Available" : "Unavailable"} (Google + Bing scraping)`,
       "",
       "## Azerbaijani Marketplaces",
       `- **tap.az:** ${tapazOk ? "Available" : "Unavailable"} (general marketplace)`,
@@ -787,10 +1283,13 @@ server.tool(
       "- File-based result caching",
       "- Multi-depth search (1-3 levels)",
       "- Concurrent page scraping",
+      "- Chromium browser-based search (Google + Bing)",
+      "- Browser-based JS content extraction",
+      "- Total unified search across all sources",
       "",
-      searxngOk || ddgOk
+      searxngOk || ddgOk || browserOk
         ? "Ready to search."
-        : "No search engines available! Start SearXNG with `docker compose up -d` or check internet for DuckDuckGo.",
+        : "No search engines available! Start SearXNG with `docker compose up -d`, check internet for DuckDuckGo, or install Chromium for browser search.",
     );
 
     return {
@@ -860,8 +1359,17 @@ async function main() {
   pruneCache();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Deep Search MCP v2.0 running on stdio (with caching + Azerbaijani support)");
+  console.error("Deep Search MCP v3.0 running on stdio (caching + Azerbaijani + browser + total search)");
 }
+
+process.on("SIGINT", async () => {
+  await closeBrowser();
+  process.exit(0);
+});
+process.on("SIGTERM", async () => {
+  await closeBrowser();
+  process.exit(0);
+});
 
 main().catch((error) => {
   console.error("Fatal error:", error);

@@ -50,3 +50,16 @@ export const DEFAULT_OPTIONS: DeepSearchOptions = {
   followLinks: false,
   engines: ["searxng", "duckduckgo"],
 };
+
+export interface TotalSearchSection {
+  source: string;
+  label: string;
+  items: { title: string; url: string; detail: string }[];
+  error?: string;
+}
+
+export interface TotalSearchResult {
+  query: string;
+  sections: TotalSearchSection[];
+  timestamp: string;
+}
